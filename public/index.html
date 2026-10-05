@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Earnings AI Reaction Predictor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 flex min-h-screen items-center justify-center p-4">
+  <div class="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl">
+    <h1 class="text-2xl font-bold tracking-tight mb-2">Earnings Reaction Agent</h1>
+    <p class="text-slate-400 text-sm mb-6">Runs multi-factor earnings consensus, tone analysis & implied move arbitrage.</p>
+    
+    <div class="flex gap-2 mb-6">
+      <input id="ticker" type="text" placeholder="NVDA" class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase font-mono">
+      <button onclick="runAnalysis()" id="submitBtn" class="bg-blue-600 hover:bg-blue-500 font-semibold px-6 py-2 rounded-lg transition-colors">Analyze</button>
+    </div>
+
+    <div id="output" class="hidden space-y-4">
+      <div class="p-4 bg-slate-800/60 rounded-lg border border-slate-700 flex justify-between items-center">
+        <div>
+          <span class="text-xs text-slate-400 uppercase font-semibold">Verdict</span>
+          <div id="verdict" class="text-xl font-bold"></div>
+        </div>
+        <div class="text-right">
+          <span class="text-xs text-slate-400 uppercase font-semibold">Composite Score</span>
+          <div id="score" class="text-xl font-mono font-bold"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div class="p-3 bg-slate-800/40 rounded border border-slate-800">
+          <div class="text-slate-400">Options Implied Move</div>
+          <div id="impliedMove" class="text-base font-semibold"></div>
+        </div>
+        <div class="p-3 bg-slate-800/40 rounded border border-slate-800">
+          <div class="text-slate-400">Predicted Gap</div>
+          <div id="predictedGap" class="text-base font-semibold"></div>
+        </div>
+      </div>
+
+      <div class="text-sm">
+        <div class="text-slate-400 font-semibold mb-1">Key Drivers:</div>
+        <ul id="drivers" class="list-disc list-inside text-slate-300 space-y-1"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function runAnalysis() {
+      const ticker = document.getElementById('ticker').value.trim();
+      if (!ticker) return;
+
+      const btn = document.getElementById('submitBtn');
+      const out = document.getElementById('output');
+      btn.disabled = true;
+      btn.innerText = "Analyzing...";
+
+      try {
+        const res = await fetch('/api/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticker: ticker })
+        });
+        const data = await res.json();
+
+        out.classList.remove('hidden');
+        document.getElementById('verdict').innerText = data.verdict;
+        document.getElementById('score').innerText = data.composite_score.toFixed(2);
+        document.getElementById('impliedMove').innerText = `±${data.priced_in_implied_move_pct}%`;
+        document.getElementById('predictedGap').innerText = `${data.expected_gap_magnitude_pct > 0 ? '+' : ''}${data.expected_gap_magnitude_pct}%`;
+
+        const driversEl = document.getElementById('drivers');
+        driversEl.innerHTML = '';
+        data.key_drivers.forEach(d => {
+          const li = document.createElement('li');
+          li.innerText = d;
+          driversEl.appendChild(li);
+        });
+      } catch (err) {
+        alert("Error fetching prediction: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Analyze";
+      }
+    }
+  </script>
+</body>
+</html>
